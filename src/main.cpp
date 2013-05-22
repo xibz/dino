@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
   graphics.launch();
   std::string romName = argv[1]; 
   Emu emu(romName);
+  emu.runRom();
   graphics.wait();
   return 0;
 }
