@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Ofast
+CFLAGS=-Ofast -g
 LIBS=-lsfml-graphics -lsfml-window -lsfml-system
 
 all: dino

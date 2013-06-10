@@ -7,6 +7,70 @@
   loadRom
   This function will load the rom data into the romData buffer
 */
+#define IP (reg[PC])
+#define OFCHECK(A) (A)&=0xFF
+int Emu::loadVal()
+{
+  return loadAddr();
+}
+int Emu::loadAddr()
+{
+  ++IP;
+  int addr = romData[IP];
+  return addr;
+}
+int Emu::loadAbsAddr()
+{
+  ++IP;
+  int addr = romData[IP];
+  addr += (romData[++IP]<<8);
+  printf("addr: %d\n", addr);
+  return addr;
+}
+
+void Emu::adc(int *dst, int src)
+{
+  int temp;
+  if(src >= 0 && *dst & src) flags |= CARRY; 
+  if(src < 0 && (temp = *dst ^ src))
+    if(temp & src) flags |= CARRY;
+  *dst += src; 
+  if(*dst > 0xFF)
+  {
+    *dst &= 0xFF;
+    flags |= OFLOW;
+  }
+  if(*dst&0x80) flags |= SIGN;
+  if(*dst&0x7F == 0) flags |= ZERO;
+  flags |= (0x20&(*dst));
+}
+
+void Emu::_and(int *dst, int src)
+{
+  *dst &= src;
+  if(!*dst) flags |= ZERO;
+  if(*dst&0x80) flags |= SIGN;
+  OFCHECK(*dst);
+}
+
+void Emu::asl(int *dst)
+{
+  *dst <<= 1;
+  flags |= CARRY;
+  if(*dst&0x80) flags |= SIGN;
+  if(*dst&0x7F == 0) flags |= ZERO;
+  OFCHECK(*dst);
+}
+
+void Emu::lsr(int *dst, int src)
+{
+  flags |= (*dst)&1;
+  *dst >>= src;
+  if(*dst&0x80) flags |= SIGN;
+  if(*dst&0x7F == 0) flags |= ZERO;
+  OFCHECK(*dst);
+}
+
 void Emu::loadRom(std::string rom)
 {
   std::ifstream in;
@@ -14,7 +78,7 @@ void Emu::loadRom(std::string rom)
   in.open(rom.c_str(), std::ifstream::in | std::ifstream::binary);
   int size = pbuf->pubseekoff(0, in.end, in.in);
   pbuf->pubseekpos(0, in.in);
-  romData = new unsigned char[size];
+  romData = new char[size];
   this->romSize = size;
   pbuf->sgetn((char *)romData, size);
   in.close();
@@ -22,53 +86,91 @@ void Emu::loadRom(std::string rom)
 
 void Emu::runRom()
 {
-  int temp;
-  for(reg[PC] = 0; reg[PC] < romSize; reg[PC]+=1)
-  {
-    //printInst();
-    execInst();
-  }
+  for(reg[PC] = 0; reg[PC] < romSize; ++reg[PC]) execInst();
 }
 
 void Emu::execInst()
 {
-  switch(romData[reg[PC]])
+  printInst();
+  switch((unsigned char)romData[IP])
   {
     case ADC_IMM:
+      cycles = 2;
+      adc(&reg[A], loadVal());
       break;
-    case ADC_ZP:
+    case ADC_ZP: 
+      cycles = 3;
+      adc(&reg[A], mem[loadAddr()]);
       break;
     case ADC_ZP_X:
+      cycles = 4;
+      adc(&reg[A], mem[loadAddr()+reg[X]]);
       break;
     case ADC_ABS:
+      cycles = 4;
+      adc(&reg[A], mem[loadAbsAddr()]);
       break;
     case ADC_ABS_X:
+      {
+        int addr = loadAbsAddr();
+        cycles = (addr > 0xFF)?5:4;
+        adc(&reg[A], mem[addr+reg[X]]);
+      }
       break;
     case ADC_ABS_Y:
+      {
+        int addr = loadAbsAddr();
+        cycles = (addr > 0xFF)?5:4;
+        adc(&reg[A], mem[addr+reg[Y]]);
+      }
       break;
     case ADC_INDIR_X:
+      {
+      }
       break;
     case ADC_INDIR_Y:
       break;
     case AND_IMM:
+      cycles = 2;
+      _and(&reg[A], mem[loadVal()]); 
       break;
     case AND_ZP:
+      cycles = 3;
+      _and(&reg[A], mem[loadAddr()]);
       break;
     case AND_ZP_X:
+      cycles = 4;
+      _and(&reg[A], mem[loadAddr()+reg[X]]);
       break;
     case AND_ABS:
+      cycles = 4;
+      _and(&reg[A], mem[loadAbsAddr()]);
       break;
     case AND_ABS_X:
+      {
+        int addr = loadAbsAddr();
+        cycles = (addr > 0xFF)?5:4;
+        _and(&reg[A], mem[addr+reg[X]]);
+      }
       break;
     case AND_ABS_Y:
+      {
+        int addr = loadAbsAddr();
+        cycles = (addr > 0xFF)?5:4;
+        _and(&reg[A], mem[addr+reg[Y]]);
+      }
       break;
     case AND_INDIR_X:
       break;
     case AND_INDIR_Y:
       break;
     case ASL_ACC:
+      cycles = 2;
+      asl(&reg[A]);
       break;
     case ASL_ZP:
+      cycles = 5;
+      asl(mem[loadAddr()]);
       break;
     case ASL_ZP_X:
       break;
@@ -223,6 +325,7 @@ void Emu::execInst()
     case LSR_ZP_X:
       break;
     case LSR_ABS:
+      lsr(&mem[loadAbsAddr()], 1);
       break;
     case LSR_ABS_X:
       break;
@@ -339,9 +442,9 @@ void Emu::execInst()
   }
 }
 
-std::string Emu::printInst()
+void  Emu::printInst()
 {
-  switch(romData[reg[PC]])
+  switch((unsigned char)romData[reg[PC]])
   {
     case ADC_IMM: printf("ADC_IMM\n");
       break;
@@ -644,6 +747,8 @@ std::string Emu::printInst()
     case TXS: printf("TXS\n");
       break;
     case TYA: printf("TYA\n");
+      break;
+    default: printf("NOT AN INSTRUCTION\n");
       break;
   }
 }

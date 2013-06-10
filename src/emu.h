@@ -1,6 +1,7 @@
 #ifndef __EMU__H
 #define __EMU__H
 #include <string>
+class Emu;
 //The A register, also called the accumulator, is a general purpose
 //register.
 //The A, X, Y registers are a byte
@@ -31,7 +32,7 @@
 //The first 0x0000-0x00FF are called zero page. The next page,
 //with addresses from 0x01000-0x01FF is called page one
 enum registers{A, X, Y, SP, PC, ST};
-enum flags{ZERO, SIGN, CARRY, OFLOW, INTERRUPT, BREAK, DECIMAL};
+enum flag{ZERO = 1, SIGN = 2, CARRY = 4, OFLOW = 8, INTERRUPT = 16, BREAK = 32, DECIMAL = 64};
 class Emu
 {
   public:
@@ -55,16 +56,26 @@ class Emu
   {
     if(romData) delete []romData;
   }
+  void initFuncs();
   void loadRom(std::string);
   void runRom();
-  std::string printInst();
+  void printInst();
   void execInst();
+  void adc(int *, int);
+  void _and(int *, int);
+  void asl(int *);
+  void lsr(int *, int);
+  int loadAddr();
+  int loadAbsAddr();
+  int loadVal();
   private:
-  unsigned char *romData;
+  char *romData;
   std::string romName;
   int mem[0x10000];
   int *ppuReg[0x8], *regAPUIO[0x20], *ram[0x800];
   int reg[6];
   int romSize;
+  int flags;
+  short cycles;
 };
 #endif
