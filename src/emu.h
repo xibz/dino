@@ -64,6 +64,9 @@ class Emu
   void adc(int *, int);
   void _and(int *, int);
   void asl(int *);
+  void bcc();
+  void bcs();
+  void beq();
   void lsr(int *, int);
   int loadAddr();
   int loadAbsAddr();

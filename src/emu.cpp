@@ -62,6 +62,24 @@ void Emu::asl(int *dst)
   OFCHECK(*dst);
 }
 
+void Emu::bcc()
+{
+  int addr = loadAbsAddr();
+  if(flags & CARRY == 0) IP = addr;
+}
+
+void Emu::bcs()
+{
+  int addr = loadAbsAddr();
+  if(flags & CARRY) IP = addr;
+}
+
+void Emu::beq()
+{
+  int addr = loadAbsAddr();
+  if(flags & ZERO) IP = addr;
+}
+
 void Emu::lsr(int *dst, int src)
 {
   flags |= (*dst)&1;
@@ -170,19 +188,30 @@ void Emu::execInst()
       break;
     case ASL_ZP:
       cycles = 5;
-      asl(mem[loadAddr()]);
+      asl(&mem[loadAddr()]);
       break;
     case ASL_ZP_X:
+      cycles = 6;
+      asl(&mem[loadAddr()+reg[X]]);
       break;
     case ASL_ABS:
+      cycles = 6;
+      asl(&mem[loadAbsAddr()]);
       break;
     case ASL_ABS_X:
+      cycles = 7;
+      asl(&mem[loadAbsAddr()]+reg[X]);
       break;
     case BCC:
+      //Add cycle
+      bcc();
       break;
     case BCS:
+      //Add cycle
+      bcs();
       break;
     case BEQ:
+      beq();
       break;
     case BIT_ZP:
       break;
