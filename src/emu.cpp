@@ -80,6 +80,104 @@ void Emu::beq()
   if(flags & ZERO) IP = addr;
 }
 
+void Emu::bits(int *dst, int src)
+{
+  unsigned char temp = *dst&src;
+  if(temp&0x40) flags |= SIGN;
+  if(temp&0x20) flags |= OFLOW;
+}
+
+void Emu::bmi()
+{
+  int addr = loadAbsAddr();
+  if(flags & SIGN) IP = addr;
+}
+
+void Emu::bne()
+{
+  int addr = loadAbsAddr();
+  if(flags & ZERO == 0) IP = addr;
+}
+
+void Emu::bpl()
+{
+  int addr = loadAbsAddr();
+  if(flags & SIGN == 0) IP = addr;
+}
+
+void Emu::brk()
+{
+  IP += 2;
+  flags |= INTERRUPT;
+  flags |= BREAK;
+}
+
+void Emu::bvc()
+{
+  int addr = loadAbsAddr();
+  if(flags & OFLOW == 0) IP = addr;
+}
+
+void Emu::bvs()
+{
+  int addr = loadAbsAddr();
+  if(flags & OFLOW) IP = addr;
+}
+
+void Emu::clc()
+{
+  flags &= ~CARRY;
+}
+
+void Emu::cld()
+{
+  flags &= ~DECIMAL;
+}
+
+void Emu::cli()
+{
+  flags &= ~INTERRUPT;
+}
+
+void Emu::clv()
+{
+  flags &= ~OFLOW;
+}
+
+void Emu::cmp(int *dst, int src)
+{
+  int temp, val = *dst - src;
+  if(src >= 0 && *dst & src) flags |= CARRY; 
+  if(src < 0 && (temp = *dst ^ src))
+    if(temp & src) flags |= CARRY;
+  if(val&0x80) flags |= SIGN;
+  if(val&0x7F == 0) flags |= ZERO;
+}
+
+void Emu::cpx(int *dst, int src)
+{
+  cmp(dst, src);
+}
+
+void Emu::cpy(int *dst, int src)
+{
+  cmp(dst, src);
+}
+
+void Emu::dec(int *n)
+{
+  --*n;
+  if(*n&0x80) flags |= SIGN;
+  if(*n&0x7F == 0) flags |= ZERO;
+}
+
+void Emu::dex(int *n)
+{
+  --*n;
+  if(*n&0x80) flags |= SIGN;
+  if(*n&0x7F == 0) flags |= ZERO;
+}
+
 void Emu::lsr(int *dst, int src)
 {
   flags |= (*dst)&1;
@@ -129,23 +227,23 @@ void Emu::execInst()
       adc(&reg[A], mem[loadAbsAddr()]);
       break;
     case ADC_ABS_X:
-      {
-        int addr = loadAbsAddr();
-        cycles = (addr > 0xFF)?5:4;
-        adc(&reg[A], mem[addr+reg[X]]);
-      }
+    {
+      int addr = loadAbsAddr();
+      cycles = (addr > 0xFF)?5:4;
+      adc(&reg[A], mem[addr+reg[X]]);
       break;
+    }
     case ADC_ABS_Y:
-      {
-        int addr = loadAbsAddr();
-        cycles = (addr > 0xFF)?5:4;
-        adc(&reg[A], mem[addr+reg[Y]]);
-      }
+    {
+      int addr = loadAbsAddr();
+      cycles = (addr > 0xFF)?5:4;
+      adc(&reg[A], mem[addr+reg[Y]]);
       break;
+    }
     case ADC_INDIR_X:
-      {
-      }
+    {
       break;
+    }
     case ADC_INDIR_Y:
       break;
     case AND_IMM:
@@ -165,19 +263,19 @@ void Emu::execInst()
       _and(&reg[A], mem[loadAbsAddr()]);
       break;
     case AND_ABS_X:
-      {
-        int addr = loadAbsAddr();
-        cycles = (addr > 0xFF)?5:4;
-        _and(&reg[A], mem[addr+reg[X]]);
-      }
+    {
+      int addr = loadAbsAddr();
+      cycles = (addr > 0xFF)?5:4;
+      _and(&reg[A], mem[addr+reg[X]]);
       break;
+    }
     case AND_ABS_Y:
-      {
-        int addr = loadAbsAddr();
-        cycles = (addr > 0xFF)?5:4;
-        _and(&reg[A], mem[addr+reg[Y]]);
-      }
+    {
+      int addr = loadAbsAddr();
+      cycles = (addr > 0xFF)?5:4;
+      _and(&reg[A], mem[addr+reg[Y]]);
       break;
+    }
     case AND_INDIR_X:
       break;
     case AND_INDIR_Y:
@@ -214,66 +312,128 @@ void Emu::execInst()
       beq();
       break;
     case BIT_ZP:
+      cycles = 3;
+      bits(&reg[A], mem[loadAddr()]);
       break;
     case BIT_ABS:
+      cycles = 4;
+      bits(&reg[A], mem[loadAbsAddr()]);
       break;
     case BMI:
+      bmi();
       break;
     case BNE:
+      bne();
       break;
     case BPL:
+      bpl();
       break;
     case BRK:
+      cycles = 7;
+      brk();
       break;
     case BVC:
+      bvc();
       break;
     case BVS:
+      bvs();
       break;
     case CLC:
+      cycles = 2;
+      clc();
       break;
     case CLD:
+      cycles = 2;
+      cld();
       break;
     case CLI:
+      cycles = 2;
+      cli();
       break;
     case CLV:
+      cycles = 2;
+      clv();
       break;
     case CMP_IMM:
+      cycles = 2;
+      cmp(&reg[A], loadVal());
       break;
     case CMP_ZP:
+      cycles = 3;
+      cmp(&reg[A], mem[loadAddr()]);
       break;
     case CMP_ZP_X:
+      cycles = 4;
+      cmp(&reg[A], mem[loadAddr()+reg[X]]);
       break;
     case CMP_ABS:
+    {
+      int addr = loadAbsAddr();
+      cycles = (addr > 0xFF)?5:4;
+      cmp(&reg[A], mem[addr]);
       break;
+    }
     case CMP_ABS_X:
+    {
+      int addr = loadAbsAddr();
+      cycles = (addr > 0xFF)?5:4;
+      cmp(&reg[A], mem[addr+reg[X]]);
       break;
+    }
     case CMP_ABS_Y:
+    {
+      int addr = loadAbsAddr();
+      cycles = (addr > 0xFF)?5:4;
+      cmp(&reg[A], mem[addr+reg[Y]]);
       break;
+    }
     case CMP_INDIR_X:
       break;
     case CMP_INDIR_Y:
       break;
     case CPX_IMM:
+      cycles = 2;
+      cpx(&reg[X], loadVal());
       break;
     case CPX_ZP:
+      cycles = 3;
+      cpx(&reg[X], mem[loadAddr()]);
       break;
     case CPX_ABS:
+      cycles = 4;
+      cpx(&reg[X], mem[loadAbsAddr()]);
       break;
     case CPY_IMM:
+      cycles = 2;
+      cpy(&reg[Y], loadVal());
       break;
     case CPY_ZP:
+      cycles = 3;
+      cpy(&reg[Y], mem[loadAddr()]);
       break;
     case CPY_ABS:
+      cycles = 4;
+      cpy(&reg[Y], mem[loadAbsAddr()]);
       break;
     case DEC_ZP:
+      cycles = 5;
+      dec(&mem[loadAddr()]);
       break;
     case DEC_ZP_X:
+      cycles = 6;
+      dec(&mem[loadAddr()+reg[X]]);
       break;
     case DEC_ABS:
+      cycles = 6;
+      dec(&mem[loadAbsAddr()]);
       break;
     case DEC_ABS_X:
+      cycles = 7;
+      dec(&mem[loadAbsAddr()+reg[X]]);
       break;
     case DEX:
+      cycles = 2;
+      dex(&reg[X]);
       break;
     case DEY:
       break;
@@ -470,7 +630,6 @@ void Emu::execInst()
       break;
   }
 }
-
 void  Emu::printInst()
 {
   switch((unsigned char)romData[reg[PC]])
